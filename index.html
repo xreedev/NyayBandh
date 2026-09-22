@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NyayBandhan — a mediator that refuses to lie</title>
+<meta name="description" content="Two people, no common language, one live-translated call. NyayBandhan tracks what was actually agreed and refuses to draft a term both sides only think they agreed to.">
+<style>
+  :root{
+    --bg:#0b0d10; --bg2:#0e1116; --card:#14181d; --line:#242a31;
+    --ink:#e8edf2; --dim:#8a95a3; --dimmer:#5b6472;
+    --ok:#2dd4a7; --warn:#f5a524; --bad:#f45b5b; --acc:#4d8dff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:radial-gradient(circle at 20% -10%, #14202c 0%, var(--bg) 45%);
+    color:var(--ink); font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  a{color:var(--acc)}
+  .wrap{max-width:960px;margin:0 auto;padding:0 24px}
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:20px 24px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:rgba(11,13,16,.85);backdrop-filter:blur(6px);z-index:10;
+  }
+  header.top .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em}
+  header.top .dot{width:9px;height:9px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 4px rgba(77,141,255,.15)}
+  header.top nav{display:flex;gap:22px;font-size:14px}
+  header.top nav a{color:var(--dim);text-decoration:none}
+  header.top nav a:hover{color:var(--ink)}
+
+  .hero{padding:96px 24px 64px;text-align:center}
+  .kicker{
+    display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--dim);border:1px solid var(--line);
+    padding:6px 12px;border-radius:999px;margin-bottom:28px;
+  }
+  .kicker b{color:var(--ok);font-weight:700}
+  h1{font-size:clamp(32px,5vw,52px);line-height:1.08;letter-spacing:-.02em;max-width:820px;margin:0 auto}
+  h1 .hl{color:var(--acc)}
+  .sub{max-width:620px;margin:22px auto 0;color:var(--dim);font-size:18px}
+  .cta{display:flex;gap:14px;justify-content:center;margin-top:36px;flex-wrap:wrap}
+  .btn{
+    font:inherit;font-weight:600;font-size:15px;text-decoration:none;
+    border-radius:10px;padding:13px 24px;display:inline-block;transition:.15s;
+  }
+  .btn.primary{background:var(--acc);color:#fff}
+  .btn.primary:hover{background:#3d7ae0}
+  .btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost:hover{border-color:var(--acc)}
+
+  section{padding:64px 24px;border-top:1px solid var(--line)}
+  section h2{font-size:26px;letter-spacing:-.01em;margin-bottom:12px}
+  section .lead{color:var(--dim);max-width:640px;margin-bottom:36px}
+
+  .scenario{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:28px;max-width:720px;margin:0 auto;
+  }
+  .bubble{display:flex;gap:12px;margin-bottom:16px;align-items:flex-start}
+  .bubble .who{
+    flex:0 0 auto;font-size:11px;font-weight:700;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--dim);width:72px;padding-top:3px;
+  }
+  .bubble .txt{background:#1a1f26;border-radius:0 10px 10px 10px;padding:10px 14px;font-size:14.5px}
+  .bubble.right{flex-direction:row-reverse}
+  .bubble.right .txt{border-radius:10px 0 10px 10px}
+  .bubble.right .who{text-align:right}
+  .verdict{
+    margin-top:20px;padding-top:20px;border-top:1px dashed var(--line);
+    font-size:14.5px;color:#ffc9c9;background:#241618;border-left:3px solid var(--bad);
+    border-radius:0 8px 8px 0;padding:14px 16px;
+  }
+  .verdict b{color:var(--bad)}
+
+  .states{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .state{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .state .pill{
+    font-size:11px;font-weight:700;letter-spacing:.06em;padding:3px 10px;
+    border-radius:20px;display:inline-block;margin-bottom:10px;
+  }
+  .state p{color:var(--dim);font-size:14px}
+  .st-agreed .pill{background:#0e3a2e;color:var(--ok)}
+  .st-diverged .pill{background:#4a1414;color:var(--bad)}
+  .st-hedged .pill{background:#43300c;color:var(--warn)}
+  .st-proposed .pill{background:#1e3050;color:#8fb8ff}
+
+  .stack{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+  .stack .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .stack .card .name{font-weight:700;margin-bottom:6px}
+  .stack .card .role{color:var(--acc);font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+  .stack .card p{color:var(--dim);font-size:13.5px}
+
+  .arch{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:24px;overflow-x:auto;
+  }
+  .arch pre{font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#9fb4cc;white-space:pre}
+
+  .qa{max-width:720px}
+  .qa .item{padding:18px 0;border-bottom:1px solid var(--line)}
+  .qa .item:last-child{border-bottom:0}
+  .qa .q{font-weight:600;margin-bottom:6px}
+  .qa .a{color:var(--dim);font-size:14.5px}
+
+  footer{padding:40px 24px;text-align:center;color:var(--dimmer);font-size:13px;border-top:1px solid var(--line)}
+  footer a{color:var(--dim)}
+  code{background:#1a1f26;border-radius:4px;padding:2px 6px;font-size:.9em;color:#9fb4cc}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><span class="dot"></span> NyayBandhan</div>
+  <nav>
+    <a href="#problem">Problem</a>
+    <a href="#how">How it works</a>
+    <a href="#stack">Stack</a>
+    <a href="#faq">FAQ</a>
+    <a href="https://github.com/xreedev/nyaybandh">GitHub</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <div class="kicker">Declared Sarvam parameter: <b>Voice Experience</b></div>
+  <h1>A faithful translator can still <span class="hl">manufacture a dispute.</span></h1>
+  <p class="sub">
+    NyayBandhan is a live, cross-language call between two parties with a mediator
+    sitting in the middle — one that tracks what was actually agreed, and refuses to
+    draft a clause that isn't a real agreement.
+  </p>
+  <div class="cta">
+    <a class="btn primary" href="#how">See how it works</a>
+    <a class="btn ghost" href="https://github.com/xreedev/nyaybandh">View the code</a>
+  </div>
+</div>
+
+<section id="problem">
+  <div class="wrap">
+    <h2>Both said yes. Both meant different things.</h2>
+    <p class="lead">
+      A migrant tenant rents a flat from a landlord who speaks a different language.
+      A broker relays every sentence perfectly. Six months later, "maintenance was
+      separate" turns out to have meant two different things — and the deposit is gone.
+    </p>
+    <div class="scenario">
+      <div class="bubble">
+        <div class="who">Landlord</div>
+        <div class="txt">"Maintenance will be separate — whatever the actual cost is."</div>
+      </div>
+      <div class="bubble right">
+        <div class="who">Tenant</div>
+        <div class="txt">"Okay, maintenance separate. ₹500 a month, fixed."</div>
+      </div>
+      <div class="verdict">
+        <b>DIVERGED.</b> Both parties said yes. A translation layer would relay both
+        sentences correctly and let the deal close — with neither side realising they
+        just agreed to two different things.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>The system tracks a state, not just a translation</h2>
+    <p class="lead">
+      Every term in the negotiation — rent, deposit, maintenance — moves through a
+      state machine. Only one state is safe to put in front of a lawyer.
+    </p>
+    <div class="states">
+      <div class="state st-agreed">
+        <span class="pill">AGREED</span>
+        <p>Both sides, same value. Safe to draft.</p>
+      </div>
+      <div class="state st-diverged">
+        <span class="pill">DIVERGED</span>
+        <p>Both said yes — to different values. The state no pure translator can produce.</p>
+      </div>
+      <div class="state st-hedged">
+        <span class="pill">HEDGED</span>
+        <p>A soft non-answer — "we'll see" — never counted as agreement.</p>
+      </div>
+      <div class="state st-proposed">
+        <span class="pill">PROPOSED</span>
+        <p>On the table, including open haggling that hasn't landed yet.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap">
+    <h2>Speech in, mediation in the middle, speech out</h2>
+    <p class="lead">Each turn is transcribed, folded into the term sheet, and either relayed or interjected on — then spoken back in the listener's language.</p>
+    <div class="arch">
+<pre>Party A mic ──WS──┐                            ┌── notes panel (term sheet + captions)
+                  ├──→  FastAPI relay  ──────→ ┤
+Party B mic ──WS──┘         │                  └── notes panel (term sheet + captions)
+                            │
+  per VAD segment:  Sarvam STT WS ──→ /translate ──→ live captions to the OTHER party
+                            │
+  on VAD end-of-turn:  sarvam-30b + tools ──→ mediator state ──→ both panels
+                            │
+                      Bulbul TTS ──→ one spoken relay sentence to the listener</pre>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <h2>Built on Sarvam's voice stack</h2>
+    <p class="lead">One declared parameter — voice experience — carried end to end.</p>
+    <div class="stack">
+      <div class="card">
+        <div class="role">Speech in</div>
+        <div class="name">Saaras v3</div>
+        <p>23 languages, code-mix native. Word timestamps and server-side VAD segment each turn.</p>
+      </div>
+      <div class="card">
+        <div class="role">Speech out</div>
+        <div class="name">Bulbul v3</div>
+        <p>11 languages, 30+ voices. Each party gets a distinct voice; pace shifts for sensitive moments.</p>
+      </div>
+      <div class="card">
+        <div class="role">Translation</div>
+        <div class="name">Mayura v1</div>
+        <p>Code-mixed for on-screen notes, formal for anything spoken aloud.</p>
+      </div>
+      <div class="card">
+        <div class="role">Reasoning</div>
+        <div class="name">gpt-4o-mini</div>
+        <p>Tool-calling mediator agent, swappable to sarvam-30b with one env var.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions people actually ask</h2>
+    <div class="qa">
+      <div class="item">
+        <div class="q">Isn't this just translation?</div>
+        <div class="a">Translation is the easy half, and this gets it free. The hard half is that a correct translation still lets two people agree to different things. That's the state the term sheet tracks — and a translator can't.</div>
+      </div>
+      <div class="item">
+        <div class="q">What happens if the two sides just disagree?</div>
+        <div class="a">The mediator escalates: it surfaces options, then names the exact gap, then parks the term and moves on. You still get an agreement covering everything that was genuinely settled.</div>
+      </div>
+      <div class="item">
+        <div class="q">Does it remember past negotiations?</div>
+        <div class="a">Same two people, next negotiation: it opens knowing what they settled last time and makes them restate anything they want carried over, rather than assuming it.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Read the full technical write-up in <a href="./README.md">README.md</a> and the demo script in <a href="./DEMO.md">DEMO.md</a>.
+</footer>
+
+</body>
+</html>

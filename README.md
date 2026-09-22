@@ -28,6 +28,34 @@ So the system tracks a *state* per term:
 
 `DIVERGED` is a state no translation layer can produce. That is the product.
 
+## Architecture
+
+```
+Party A mic ──WS──┐                            ┌── notes panel (term sheet + captions)
+                  ├──→  FastAPI relay  ──────→ ┤
+Party B mic ──WS──┘         │                  └── notes panel (term sheet + captions)
+                            │
+  per VAD segment:  Sarvam STT WS ──→ /translate ──→ live captions to the OTHER party
+                            │
+  on VAD end-of-turn:  sarvam-30b + tools ──→ mediator state ──→ both panels
+                            │
+                      Bulbul TTS ──→ one spoken relay sentence to the listener
+```
+
+- `app/sarvam.py` — every Sarvam endpoint/param in one place, so `verify.py` proves them all
+- `app/mediator.py` — **the scored core.** Term state machine + divergence detection, scoped per room
+- `app/agent.py` — one tool-calling `sarvam-30b` call per completed turn
+- `app/stt_stream.py` — Sarvam STT WebSocket URL builder + frame classifier
+- `app/session.py` — snapshot persistence (file-based; also reused for the DB path)
+- `app/meet_interface/` — the real-time meet:
+  - `rooms.py` — in-memory room registry (create/join, max 2 participants), Postgres-backed for durability
+  - `db.py` — Neon Postgres: rooms, participants, term-sheet snapshots (degrades to in-memory-only if unreachable)
+  - `languages.py` — supported languages (English + Indian languages) and their TTS speakers
+  - `ws.py` — the live relay: browser PCM16 → Sarvam STT WS → live captions + one agent call per turn → TTS → broadcast
+  - `app.py` — router: `POST /api/meet/rooms`, `GET /api/meet/languages`, `WS /api/meet/ws/{code}`
+- `frontend/` — Next.js 14 app (TypeScript, Tailwind, Zustand), built as a **static export** and served by FastAPI at `/meet`
+- `verify.py` — first-hour Sarvam API preflight
+
 ---
 
 ## Tech stack
@@ -72,49 +100,6 @@ Optional hot-reload dev mode while iterating on frontend components: `npm run de
 `frontend/` (port 3000) against the backend on 8000 — the one cross-origin case, which
 is why CORS is enabled for `http://localhost:3000` in `app/main.py`.
 
-## The thesis
-
-A relay translates faithfully and *manufactures* the dispute it was built to prevent.
-
-One party says maintenance is *alag* — separate, actual costs. The other hears
-"separate" and agrees, meaning a fixed monthly amount. **Both said yes. Both meant
-different things.** A translation layer passes both yeses through cleanly and neither
-party ever learns they diverged. Six months later that is a court case.
-
-So the agent is not a translator. It tracks the *state of every term* and interjects —
-in both languages — the moment a mutual yes turns out to be two different yeses.
-
-`TermState.DIVERGED` is the state no pure translation layer can produce. That is the
-product.
-
-## Architecture
-
-```
-Party A mic ──WS──┐                            ┌── notes panel (term sheet + captions)
-                  ├──→  FastAPI relay  ──────→ ┤
-Party B mic ──WS──┘         │                  └── notes panel (term sheet + captions)
-                            │
-  per VAD segment:  Sarvam STT WS ──→ /translate ──→ live captions to the OTHER party
-                            │
-  on VAD end-of-turn:  sarvam-30b + tools ──→ mediator state ──→ both panels
-                            │
-                      Bulbul TTS ──→ one spoken relay sentence to the listener
-```
-
-- `app/sarvam.py` — every Sarvam endpoint/param in one place, so `verify.py` proves them all
-- `app/mediator.py` — **the scored core.** Term state machine + divergence detection, scoped per room
-- `app/agent.py` — one tool-calling `sarvam-30b` call per completed turn
-- `app/stt_stream.py` — Sarvam STT WebSocket URL builder + frame classifier
-- `app/session.py` — snapshot persistence (file-based; also reused for the DB path)
-- `app/meet_interface/` — the real-time meet:
-  - `rooms.py` — in-memory room registry (create/join, max 2 participants), Postgres-backed for durability
-  - `db.py` — Neon Postgres: rooms, participants, term-sheet snapshots (degrades to in-memory-only if unreachable)
-  - `languages.py` — supported languages (English + Indian languages) and their TTS speakers
-  - `ws.py` — the live relay: browser PCM16 → Sarvam STT WS → live captions + one agent call per turn → TTS → broadcast
-  - `app.py` — router: `POST /api/meet/rooms`, `GET /api/meet/languages`, `WS /api/meet/ws/{code}`
-- `frontend/` — Next.js 14 app (TypeScript, Tailwind, Zustand), built as a **static export** and served by FastAPI at `/meet`
-- `verify.py` — first-hour Sarvam API preflight
-
 ## What you need to supply
 
 - **`SARVAM_API_KEY`** — root `.env`.
@@ -128,3 +113,8 @@ Party B mic ──WS──┘         │                  └── notes panel
       (only `gu-IN`→`ratan` and `ml-IN`→`shubh` are confirmed against live docs)
 - [ ] two devices, two languages, one call: divergence still turns a term red
 - [ ] restart the server mid-call once — a rejoined room's term sheet survives
+
+## More
+
+- [`DEMO.md`](./DEMO.md) — three-minute demo script (business context, live turns, the "spring the trap" moment, judge Q&A)
+- [`docs/`](./docs) — supporting notes
